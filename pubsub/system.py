@@ -103,10 +103,10 @@ class System:
 
 if __name__ == "__main__":
     system = System()
-    SPORTS = "SPORTS"
-    STOCK = "STOCK"
-    system.create_topic(SPORTS)
-    system.create_topic(STOCK)
+    SPORTS_TOPIC = "SPORTS"
+    STOCK_TOPIC = "STOCK"
+    system.create_topic(SPORTS_TOPIC)
+    system.create_topic(STOCK_TOPIC)
 
     baseball_news = NewsSubscriber("baseball_news")
     sports_news = SlowSubscriber("sports_news")
@@ -114,19 +114,14 @@ if __name__ == "__main__":
     economics_news = SlowSubscriber("economics_news")
     sbi_crawler = SlowSubscriber("sbi")
 
-    system.subscribe_topic(SPORTS, baseball_news)
-    system.subscribe_topic(SPORTS, sports_news)
-    system.publish("Japan wins at WBC.", SPORTS)
-    print("--- print 2 lines ↑ --- ")
-    system.unsubscribe_topic(SPORTS, sports_news)
-    system.publish("USA wins at WBC.", SPORTS)
-    print("--- print 1 line ↑ --- ")
-    system.publish("NVIDIA touched highest value yesterday.", STOCK)
-    print("--- print nothing ↑ --- ")
-    system.subscribe_topic(STOCK, stock_news)
-    system.publish("$NVDA touched highest value yesterday.", STOCK)
-    print("--- print 1 line ↑ --- ")
-    system.subscribe_topic(STOCK, economics_news)
-    system.subscribe_topic(STOCK, sbi_crawler)
-    system.publish("$AAPL touched highest value yesterday.", STOCK)
-    print("--- print 3 line ↑ --- ")
+    system.subscribe_topic(SPORTS_TOPIC, baseball_news)
+    system.subscribe_topic(SPORTS_TOPIC, sports_news)
+    system.publish(SPORTS_TOPIC, "Japan won at WBC.")
+    system.unsubscribe_topic(SPORTS_TOPIC, sports_news)
+    system.publish(SPORTS_TOPIC, "USA won at WBC.")
+    system.publish(STOCK_TOPIC, "NVIDIA touched highest value yesterday.")
+    system.subscribe_topic(STOCK_TOPIC, stock_news)
+    system.publish(STOCK_TOPIC, "$NVDA touched highest value yesterday.")
+    system.subscribe_topic(STOCK_TOPIC, economics_news)
+    system.subscribe_topic(STOCK_TOPIC, sbi_crawler)
+    system.publish(STOCK_TOPIC, "$AAPL touched highest value yesterday.")
