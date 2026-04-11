@@ -9,13 +9,17 @@ class Task:
         self.parent_id = task["parentId"]
         self.children = []
 
-    def get_parameters(self):
-        print(f"id: {self.id}, name: {self.name}, status: {self.status}, parentId: {self.parent_id}")
-        if self.children:
-            for child in self.children:
-                print('  - ', end="")
-                child.get_parameters()
-            
+    def get_parameters(self, visited=None, gen=0):
+        if visited is None:
+            visited = set()
+        if self.id in visited:
+            return
+
+        indent = ' ' * (gen * 2)
+        print(f"{indent}id: {self.id}, name: {self.name}, status: {self.status}, parentId: {self.parent_id}")
+        new_visited = visited | {self.id}
+        for child in self.children:
+            child.get_parameters(new_visited, gen + 1)
 
 
 def process_task(results: str):
@@ -39,15 +43,15 @@ def process_task(results: str):
                 parent.children.append(t)
             else:
                 roots.append(t)
-    return sorted(d.values(), key=lambda x: x.id)
+    return roots
 
 
 if __name__ == "__main__":
     raw = '''
         [
             {"id": 1, "name": "build", "status": "ok", "parentId": 0},
-            {"id": 2, "name": "test", "status": "ok", "parentId": 0},
-            {"id": 2, "name": "test", "status": "error", "parentId": 0},
+            {"id": 2, "name": "test", "status": "ok", "parentId": 3},
+            {"id": 2, "name": "test", "status": "error", "parentId": 3},
             {"id": 3, "name": "test", "status": "error", "parentId": 1},
             {"id": 3, "name": "test", "status": "warning", "parentId": 1}
         ]
