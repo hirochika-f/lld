@@ -6,26 +6,40 @@ class Task:
         self.id = task["id"]
         self.name = task["name"]
         self.status = task["status"]
-        self.parentId = task["parentId"]
-        self.children = {}
+        self.parent_id = task["parentId"]
+        self.children = []
 
     def get_parameters(self):
-        print(f"id: {self.id}, name: {self.name}, status: {self.status}, parentId: {self.parentId}")
+        print(f"id: {self.id}, name: {self.name}, status: {self.status}, parentId: {self.parent_id}")
         if self.children:
-            for child in self.children.values():
+            for child in self.children:
                 print('  - ', end="")
                 child.get_parameters()
             
 
 
 def process_task(results: str):
-    results: list[dict] = json.loads(dedent(results))
-    ret = {}
-    for result in results:
-        ret[result["id"]] = Task(result)
-        if result["parentId"] != 0:
-            ret[result["parentId"]].children[result["id"]] = ret[result["id"]]
-    return sorted(ret.values(), key=lambda x: x.id)
+    tasks: list[dict] = json.loads(dedent(results))
+    dedup = {}
+    for t in tasks:
+        dedup[t["id"]] = t
+
+    d = {}
+    for t in dedup.values():
+        d[t["id"]] = Task(t)
+
+
+    roots = []
+    for t in d.values():
+        if t.parent_id == 0:
+            roots.append(t)
+        else:
+            parent = d.get(t.parent_id)
+            if parent:
+                parent.children.append(t)
+            else:
+                roots.append(t)
+    return sorted(d.values(), key=lambda x: x.id)
 
 
 if __name__ == "__main__":
