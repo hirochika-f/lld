@@ -5,7 +5,7 @@ class EventStore:
         self.events = []
 
     def append(self, event_id: str, timestamp: int):
-        # O(n)
+        # O(N)
         insort(self.events, (timestamp, event_id))
 
     def get_latest(self, n: int):
