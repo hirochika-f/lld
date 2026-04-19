@@ -14,7 +14,7 @@ class TokenBucket:
         elapsed = now - self.last_refill
         added_tokens = elapsed * self.rate
         self.tokens = min(self.tokens + added_tokens, self.capacity)
-        self.last_refill = time.time()
+        self.last_refill = now
 
     def allow_request(self):
         with self._lock:
