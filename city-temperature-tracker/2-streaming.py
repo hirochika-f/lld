@@ -41,3 +41,4 @@ if __name__ == "__main__":
         tracker.ingest(temp)
     print(tracker.snapshot())
     print(tracker.get_latest("JPN"))
+    print(tracker.get_highest("JPN"))
