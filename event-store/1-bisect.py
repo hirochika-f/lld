@@ -10,7 +10,7 @@ class EventStore:
 
     def get_latest(self, n: int):
         # O(n)
-        return [e[1] for e in reversed(self.events[-n:])]
+        return [e[1] for e in self.events[::-1][:n]]
 
 
 if __name__ == "__main__":
@@ -18,5 +18,7 @@ if __name__ == "__main__":
     store.append("event1", 100)
     store.append("event2", 200)
     store.append("event3", 150)
-    print(store.get_latest(2))
+    store.append("event4", 50)
+    store.append("event5", 250)
+    print(store.get_latest(3))
 
