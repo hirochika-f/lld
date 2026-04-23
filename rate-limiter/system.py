@@ -46,18 +46,18 @@ if __name__ == "__main__":
             print("Request SUCCEEDED!!")
         else:
             print("FAILED...")
-    print("--- UserA 1st Requests DONE ---")
+    print("--- UserA 5 requests DONE ---")
 
     for _ in range(10):
         if rate_limiter.allow_request("UserA"):
             print("Request SUCCEEDED!!")
         else:
             print("FAILED...")
-    print("--- UserA Requests DONE ---")
+    print("--- UserA 10 requests DONE ---")
 
     for _ in range(11):
         if rate_limiter.allow_request("UserB"):
             print("Request SUCCEEDED!!")
         else:
             print("FAILED...")
-    print("--- UserB Requests DONE ---")
+    print("--- UserB 11 requests DONE ---")
