@@ -1,8 +1,3 @@
-from collections import defaultdict
-import heapq
-import threading
-
-
 class MessageQueue:
     def __init__(self):
         self.messages = {}
