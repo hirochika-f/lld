@@ -3,9 +3,9 @@ import threading
 
 class TokenBucket:
     def __init__(self, capacity: int, rate: float):
-        self.capacity = capacity
+        self.capacity = capacity  # throttling
         self.tokens = capacity
-        self.rate = rate
+        self.rate = rate  # rate limit
         self.last_refill = time.time()
         self._lock = threading.Lock()
 
