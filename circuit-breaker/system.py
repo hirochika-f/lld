@@ -38,6 +38,7 @@ class CircuitBreaker:
             return result
 
     def _on_failure(self):
+        # TODO: thread safe
         self.failure_count += 1
         
         if self.state == State.HALF_OPEN:
@@ -47,6 +48,7 @@ class CircuitBreaker:
 
     def _on_success(self):
         if self.state == State.HALF_OPEN:
+            # TODO: thread safe
             self.success_count += 1
             if self.success_count >= self.half_open_success_threshold:
                 self._reset()
