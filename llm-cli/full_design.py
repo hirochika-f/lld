@@ -1,4 +1,6 @@
+from abc import abstractmethod
 from collections.abc import Iterator
+from typing import Protocol
 from enum import StrEnum
 from openai import OpenAI
 from pathlib import Path
@@ -12,8 +14,8 @@ class Role(StrEnum):
 
 
 class ConfigManager:
-    def __init__(self):
-        path = Path("~/.llm-cli.json").expanduser()
+    def __init__(self, config_path="~/.llm-cli.json"):
+        path = Path(config_path).expanduser()
         with open(path, "r") as f:
             config = json.load(f)
             self.api_key = config["apiKey"]
@@ -51,23 +53,20 @@ class ChatSession:
         pass
 
 
-class LlmProvider:
-    def __init__(self):
-        pass
-
-    def stream(self):
-        pass
+class LlmProvider(Protocol):
+    def stream(self, messages: list[dict[str, str]]) -> Iterator[str]:
+        ...
 
 
-class OpenAiClient(LlmProvider):
-    def __init__(self):
-        self.config = ConfigManager()
+class OpenAiClient:
+    def __init__(self, config):
+        self.config = config
         self.client = OpenAI(api_key=self.config.api_key)
 
-    def stream(self, chat_session: ChatSession) -> Iterator[str]:
+    def stream(self, messages: list[dict[str, str]]) -> Iterator[str]:
         stream_response = self.client.chat.completions.create(
             model=self.config.model,
-            messages=chat_session.messages,
+            messages=messages,
             stream=True
         )
         for chunk in stream_response:
@@ -88,19 +87,23 @@ class CliApp:
             if user_input == "exit":
                 break
             self.session.add_user_message(user_input)
-
-            assistant_response = ""
-
-            for token in self.client.stream(self.session):
-                print(token, end="", flush=True)
-                assistant_response += token
-            print()
-            
+            assistant_response = self._construct_assistant_message(
+                self.client.stream(self.session.get_messages())
+            )
             self.session.add_assistant_message(assistant_response)
 
+    def _construct_assistant_message(self, content: Iterator[str]):
+        assistant_response = ""
+        for token in content:
+            print(token, end="", flush=True)
+            assistant_response += token
+        print()
+        return assistant_response
+ 
 
 if __name__ == "__main__":
-    client = OpenAiClient()
+    client = OpenAiClient(ConfigManager())
     session = ChatSession("You are a helpful CLI assistant.")
     app = CliApp(client, session)
     app.start()
+
