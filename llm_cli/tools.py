@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Any, Protocol
 from pathlib import Path
 import asyncio
 
@@ -39,6 +40,14 @@ class ListDir:
             },
             "required": ["path"]
         }
+        self.definition = {
+            "type": "function",
+            "function": {
+                "name": self.name,
+                "description": self.description,
+                "parameters": self.schema
+            }
+        }
 
     async def execute(self, args: dict[str, Any]) -> str:
         path = args.get("path", "")
@@ -54,6 +63,9 @@ class ListDir:
             "files": ' '.join(file_list)
         }
         return f"{response}"
+
+    def get_definition(self) -> dict[str, str]:
+        return self.definition
 
 
 class ToolRegistry:
@@ -71,5 +83,8 @@ class ToolRegistry:
             raise ValueError(f"Not found tool: {name}")
         return self.tools[name]
 
-
+    def get_tool_definitions(self) -> dict[str, Any]:
+        return [
+            t.get_definition() for t in self.tools.values()
+        ]
 
