@@ -1,13 +1,19 @@
 from abc import abstractmethod
 from collections.abc import Iterator
-from typing import Protocol
 from enum import StrEnum
 from openai import OpenAI
 from pathlib import Path
+from textwrap import dedent
+from typing import Protocol
 import json
 
-from llm-cli.tools import ListDir, ToolCall, ToolRegistry ToolResult
+from llm_cli.tools import ListDir, ToolCall, ToolRegistry, ToolResult
 
+SYSTEM_PROMPT = """
+You are an CLI assistant.
+You can use a tool as below
+  1. ListDir tool: to list the files and folders in the directory user passed.
+"""
 
 class Role(StrEnum):
     SYSTEM = "system"
@@ -61,14 +67,16 @@ class LlmProvider(Protocol):
 
 
 class OpenAiClient:
-    def __init__(self, config):
+    def __init__(self, config, tool_registry):
         self.config = config
         self.client = OpenAI(api_key=self.config.api_key)
+        self.registry = tool_registry
 
     def stream(self, messages: list[dict[str, str]]) -> Iterator[str]:
         stream_response = self.client.chat.completions.create(
             model=self.config.model,
             messages=messages,
+            tools=self.registry.get_tool_definitions(),
             stream=True
         )
         for chunk in stream_response:
@@ -104,8 +112,10 @@ class CliApp:
  
 
 if __name__ == "__main__":
-    client = OpenAiClient(ConfigManager())
-    session = ChatSession("You are a helpful CLI assistant.")
+    tool_registry = ToolRegistry()
+    tool_registry.register(ListDir())
+    client = OpenAiClient(ConfigManager(), tool_registry)
+    session = ChatSession(SYSTEM_PROMPT)
     app = CliApp(client, session)
     app.start()
 
