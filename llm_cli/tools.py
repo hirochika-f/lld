@@ -21,6 +21,7 @@ class Tool(Protocol):
     name: str
     description: str
     schema: dict[str, Any]
+    definition: dict[str, str]
 
     async def execute(self, args: dict[str, Any]) -> str:
         pass
