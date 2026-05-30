@@ -17,6 +17,11 @@ class ToolResult:
     content: str
 
 
+@dataclass
+class ToolCallsEvent:
+    tool_calls: list[ToolCall]
+
+
 class Tool(Protocol):
     name: str
     description: str
@@ -88,4 +93,60 @@ class ToolRegistry:
         return [
             t.get_definition() for t in self.tools.values()
         ]
+
+
+class ToolValidator:
+    def validate(self, tool: Tool, call: ToolCall) -> dict[str, Any]:
+        self._validate_tool_exists(tool)
+        self._validate_required_fields(tool, call.args)
+        self._validate_types(tool, call.args)
+        return call.args
+
+    def _validate_tool_exists(self, tool):
+        if tool is None:
+            raise ValueError(f"Tool not found: {call.name}")
+
+    def _validate_required_fields(self, tool, args):
+        required = tool.schema.get("required", [])
+        missing = [key for key in required if key not in args]
+        if missing:
+            raise ValueError(f"Missing fields: {missing}")
+
+    def _validate_types(self, tool, args):
+        props = tool.schema.get("properties", {})
+        for k, v in args.items():
+            if k not in props:
+                continue
+            expected_type = props[k].get("type")
+            if expected_type == "string" and not isinstance(v, str):
+                raise ValueError(f"{k} must be string")
+
+
+class ToolDispatcher:
+    def __init__(self, registry: ToolRegistry, validator: ToolValidator):
+        self.registry = registry
+        self.validator = validator
+
+    async def dispatch(self, calls: list[ToolCall]) -> list[ToolResult]:
+        tasks = [
+            asyncio.create_task(self._execute(call)) for call in calls
+        ]
+        return await asyncio.gather(*tasks)
+
+    async def _execute(self, call: ToolCall) -> ToolResult:
+        try:
+            tool = self.registry.get_tool(call.name)
+            args = self.validator.validate(tool, call)
+            result = await tool.execute(args)
+            return ToolResult(
+                call_id=call.id,
+                success=True,
+                content=result
+            )
+        except Exception as e:
+            return ToolResult(
+                call_id=call.id,
+                success=False,
+                content=f"Execution Error: {str(e)}"
+            )
 
