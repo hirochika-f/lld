@@ -17,11 +17,6 @@ class ToolResult:
     content: str
 
 
-@dataclass
-class ToolCallsEvent:
-    tool_calls: list[ToolCall]
-
-
 class Tool(Protocol):
     name: str
     description: str
