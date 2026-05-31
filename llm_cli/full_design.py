@@ -6,6 +6,7 @@ from openai import OpenAI
 from pathlib import Path
 from textwrap import dedent
 from typing import Protocol
+import asyncio
 import json
 
 from llm_cli.tools import ListDir, ToolCall, ToolDispatcher, ToolRegistry, ToolResult, ToolValidator
@@ -124,40 +125,58 @@ class CliApp:
         self.session = session
         self.dispatcher = dispatcher
 
-    def start(self):
+    async def start(self):
         while True:
             user_input = input("You: ")
 
             if user_input == "exit":
+                print("BYE!")
                 break
 
             self.session.add_user_message(user_input)
             assistant_response = ""
+            tool_calls = None
 
             for event in self.client.stream(self.session.get_messages()):
                 if isinstance(event, TextEvent):
                     print(event.text, end="", flush=True)
                     assistant_response += event.text
                 elif isinstance(event, ToolCallsEvent):
-                    self.dispatcher.dispatch(event.tool_calls)
+                    tool_calls = event.tool_calls
 
-            self.session.add_assistant_message(assistant_response)
+            if tool_calls is None:
+                self.session.add_assistant_message(assistant_response)
+            else:
+                self.session.add_assistant_tool_calls(tool_calls)
+                tool_results = await self.dispatcher.dispatch(tool_calls)
+                for tool_result in tool_results:
+                    self.session.add_tool_result(tool_result)
+                for event in self.client.stream(self.session.get_messages()):
+                    if isinstance(event, TextEvent):
+                        print(event.text, end="", flush=True)
+                        assistant_response += event.text
+                    else:
+                        # only one tool calling round supported
+                        raise ValueError("Chained tool callings.")
+                self.session.add_assistant_message(assistant_response)
+                print()
 
-    def _construct_assistant_message(self, content: Iterator[str]):
-        assistant_response = ""
-        for token in content:
-            print(token, end="", flush=True)
-            assistant_response += token
-        return assistant_response
- 
-
-if __name__ == "__main__":
+                        
+async def main():
     registry = ToolRegistry()
     registry.register(ListDir())
+
     validator = ToolValidator()
     dispatcher = ToolDispatcher(registry, validator)
+
     client = OpenAiClient(ConfigManager(), registry)
+
     session = ChatSession("You are a CLI assistant.")
+
     app = CliApp(client, session, dispatcher)
-    app.start()
+    await app.start()
+   
+
+if __name__ == "__main__":
+    asyncio.run(main())
 
