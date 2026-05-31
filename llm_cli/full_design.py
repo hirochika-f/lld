@@ -26,6 +26,15 @@ class Role(StrEnum):
     SYSTEM = "system"
     USER = "user"
     ASSISTANT = "assistant"
+    TOOL = "tool"
+
+
+@dataclass
+class Message:
+    role: Role
+    content: str
+    tool_call_id: str | None = None
+    tool_calls: list[ToolCall] | None = None
 
 
 class ConfigManager:
@@ -39,32 +48,44 @@ class ConfigManager:
 
 class ChatSession:
     def __init__(self, system_message: str):
-        self.messages: list[dict[str, str]] = []
-        system_prompt = {
-            "role": Role.SYSTEM,
-            "content": system_message
-        }
+        self.messages: list[Message] = []
+        system_prompt = Message(
+            role=Role.SYSTEM,
+            content=system_message
+        )
         self.messages.append(system_prompt)
 
     def add_user_message(self, user_message: str):
-        prompt = {
-            "role": Role.USER,
-            "content": user_message
-        }
+        prompt = Message(
+            role=Role.USER,
+            content=user_message
+        )
         self.messages.append(prompt)
 
     def add_assistant_message(self, assistant_message: str):
-        prompt = {
-            "role": Role.ASSISTANT,
-            "content": assistant_message
-        }
+        prompt = Message(
+            role=Role.ASSISTANT,
+            content=assistant_message
+        )
         self.messages.append(prompt)
 
-    def add_tool_result(self, tool_result: str):
-        # TODO: implement later
-        pass
+    def add_assistant_tool_calls(self, tool_calls: list[ToolCall]):
+        message = Message(
+            role=Role.ASSISTANT,
+            content="",
+            tool_calls=tool_calls
+        )
+        self.messages.append(message)
 
-    def get_messages(self) -> list:
+    def add_tool_result(self, tool_result: ToolResult):
+        tool_message = Message(
+            role=Role.TOOL,
+            content=tool_result.content,
+            tool_call_id=tool_result.call_id
+        )
+        self.messages.append(tool_message)
+
+    def get_messages(self) -> list[Message]:
         return self.messages
 
     def cutoff(self):
@@ -73,7 +94,7 @@ class ChatSession:
 
 
 class LlmProvider(Protocol):
-    def stream(self, messages: list[dict[str, str]]) -> Iterator[TextEvent | ToolCallsEvent]:
+    def stream(self, messages: list[Message]) -> Iterator[TextEvent | ToolCallsEvent]:
         ...
 
 
@@ -83,7 +104,32 @@ class OpenAiClient:
         self.client = OpenAI(api_key=self.config.api_key)
         self.registry = tool_registry
 
-    def stream(self, messages: list[dict[str, str]]) -> Iterator[TextEvent | ToolCallsEvent]:
+    def _convert_messages(self, messages: list[Message]) -> list[dict[str, str]]:
+        dict_messages = []
+        for msg in messages:
+            item = {
+                "role": msg.role.value,
+                "content": msg.content,
+            }
+            if msg.tool_call_id:
+                item["tool_call_id"] = msg.tool_call_id
+            if msg.tool_calls:
+                item["tool_calls"] = [
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {
+                            "name": tc.name,
+                            "arguments": json.dumps(tc.args)
+                        }
+                    }
+                    for tc in msg.tool_calls
+                ]
+            dict_messages.append(item)
+        return dict_messages
+
+    def stream(self, messages: list[Message]) -> Iterator[TextEvent | ToolCallsEvent]:
+        messages = self._convert_messages(messages)
         stream_response = self.client.chat.completions.create(
             model=self.config.model,
             messages=messages,
@@ -116,7 +162,6 @@ class OpenAiClient:
                 args = json.loads(v["arguments"])
                 tool_calls_list.append(ToolCall(id=v["id"], name=v["name"], args=args))
             yield ToolCallsEvent(tool_calls_list)
-            
 
 
 class CliApp:
@@ -161,7 +206,7 @@ class CliApp:
                 self.session.add_assistant_message(assistant_response)
                 print()
 
-                        
+
 async def main():
     registry = ToolRegistry()
     registry.register(ListDir())
@@ -175,7 +220,7 @@ async def main():
 
     app = CliApp(client, session, dispatcher)
     await app.start()
-   
+
 
 if __name__ == "__main__":
     asyncio.run(main())
