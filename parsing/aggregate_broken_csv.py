@@ -24,7 +24,7 @@ def extract(reader: Iterable[dict[str, str]]) -> dict[str, int]:
 
 
 if __name__ == "__main__":
-    with open("broken.csv", newline="") as f:
+    with open("input.csv", newline="") as f:
         reader = csv.DictReader(f)
         sales = extract(reader)
         print("ret: ", sales)
