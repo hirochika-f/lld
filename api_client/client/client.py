@@ -79,10 +79,8 @@ class ApiClient:
                 self._sleep_before_retry(delay)
 
             except (
-                httpx.ConnectError,
-                httpx.ReadTimeout,
-                httpx.WriteTimeout,
-                httpx.PoolTimeout,
+                httpx.NetworkError,
+                httpx.TimeoutException,
             ):
                 if attempt == self.max_attempts:
                     raise
