@@ -14,6 +14,7 @@ class ApiClient:
         timeout_seconds: float = 5.0,
         max_attempts: int = 5,
         retry_delay_seconds: float = 1.0,
+        max_retry_delay_seconds: float = 30.0
     ) -> None:
         self._client = httpx.Client(
             base_url=base_url,
@@ -68,7 +69,7 @@ class ApiClient:
                 if attempt == self.max_attempts:
                     raise
                 
-                delay = self._get_exponential_retry_delay(e.response, attempt)
+                delay = self._get_retry_delay(e.response, attempt)
                 print(
                     f"Request failed with HTTP {status_code}. "
                     f"Attempt {attempt}/{self.max_attempts}. "
@@ -93,21 +94,25 @@ class ApiClient:
                 self._sleep_before_retry(self.retry_delay_seconds)
         raise RuntimeError("Unreachable")
 
-    def _get_exponential_retry_delay(
+    def _get_retry_delay(
         self,
         response: httpx.Response,
         attempt: int,
     ) -> float:
-        exponential_retry_after = (2 ** attempt) * self.retry_delay_seconds + random.random()
-
-        response_retry_after = float(response.headers.get("Retry-After"))
+        backoff_cap = min(
+            (2 ** (attempt - 1)) * self.retry_delay_seconds,
+            self.max_retry_delay_seconds,
+        )
+        jittered_backoff = random.uniform(0.0, backoff_cap)
+        response_retry_after = response.headers.get("Retry-After")
         if response_retry_after is None:
-            return exponential_retry_after
-        retry_after = max(exponential_retry_after, response_retry_after)
+            return jittered_backoff
+
         try:
-            return max(0.0, float(retry_after))
+            # assume response_retry_after as float
+            return max(0.0, float(response_retry_after), jittered_backoff)
         except ValueError:
-            return exponential_retry_after
+            return jittered_backoff
         
     @staticmethod
     def _sleep_before_retry(seconds: float) -> None:
