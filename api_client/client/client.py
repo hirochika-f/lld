@@ -22,6 +22,7 @@ class ApiClient:
         )
         self.max_attempts = max_attempts
         self.retry_delay_seconds = retry_delay_seconds
+        self.max_retry_delay_seconds = max_retry_delay_seconds
 
     def get(
         self,
