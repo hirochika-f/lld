@@ -1,5 +1,4 @@
 from typing import Any
-import time
 import random
 
 import asyncio
@@ -15,7 +14,8 @@ class AsyncApiClient:
         timeout_seconds: float = 5.0,
         max_attempts: int = 5,
         retry_delay_seconds: float = 1.0,
-        max_retry_delay_seconds: float = 30.0
+        max_retry_delay_seconds: float = 30.0,
+        max_concurrency: int = 10,
     ) -> None:
         self._client = httpx.AsyncClient(
             base_url=base_url,
@@ -24,6 +24,7 @@ class AsyncApiClient:
         self.max_attempts = max_attempts
         self.retry_delay_seconds = retry_delay_seconds
         self.max_retry_delay_seconds = max_retry_delay_seconds
+        self._semaphore = asyncio.Semaphore(max_concurrency)
 
     async def get(
         self,
@@ -55,11 +56,12 @@ class AsyncApiClient:
     ) -> dict[str, Any]:
         for attempt in range(1, self.max_attempts + 1):
             try:
-                response = await self._client.request(
-                    method=method,
-                    url=path,
-                    **kwargs,
-                )
+                async with self._semaphore:
+                    response = await self._client.request(
+                        method=method,
+                        url=path,
+                        **kwargs,
+                    )
                 response.raise_for_status()
                 return response.json()
 
@@ -96,7 +98,7 @@ class AsyncApiClient:
 
     def _get_retry_delay(
         self,
-        response: httpx.Response,
+        response: httpx.Response | None,
         attempt: int,
     ) -> float:
         backoff_cap = min(
@@ -104,6 +106,8 @@ class AsyncApiClient:
             self.max_retry_delay_seconds,
         )
         jittered_backoff = random.uniform(0.0, backoff_cap)
+        if response is None:
+            return jittered_backoff
         response_retry_after = response.headers.get("Retry-After")
         if response_retry_after is None:
             return jittered_backoff
@@ -129,11 +133,12 @@ class AsyncApiClient:
 
 
 async def main() -> None:
-    async with AsyncApiClient() as client:
+    async with AsyncApiClient(max_concurrency=2) as client:
         results = await asyncio.gather(
-            client.get("/fail-first/2"),
-            client.get("/fail-first/2"),
-            client.get("/fail-first/2"),
+            *[
+                client.get("/slow/1")
+                for _ in range(10)
+            ]
         )
         print(results)
         await client.post("/reset")
