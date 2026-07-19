@@ -69,15 +69,15 @@ class AsyncApiClient:
                 response.raise_for_status()
                 return response.json()
 
-            except httpx.HTTPStatusError as e:
-                status_code = e.response.status_code
+            except httpx.HTTPStatusError as exc:
+                status_code = exc.response.status_code
 
                 if status_code not in RETRYABLE_STATUS_CODES:
                     raise
                 if attempt == self.max_attempts:
                     raise
                 
-                delay = self._get_retry_delay(e.response, attempt)
+                delay = self._get_retry_delay(exc.response, attempt)
                 print(
                     f"Request failed with HTTP {status_code}. "
                     f"Attempt {attempt}/{self.max_attempts}. "
@@ -88,15 +88,15 @@ class AsyncApiClient:
             except (
                 httpx.NetworkError,
                 httpx.TimeoutException,
-            ):
+            ) as exc:
                 if attempt == self.max_attempts:
                     raise
 
                 delay = self._get_retry_delay(None, attempt)
                 print(
-                    "Network error. "
+                    f"{type(exc).__name__}: {exc}. "
                     f"Attempt {attempt}/{self.max_attempts}. "
-                    f"Retrying in {self.retry_delay_seconds:.1f} seconds."
+                    f"Retrying in {delay:.1f} seconds."
                 )
                 await self._sleep_before_retry(delay)
         raise RuntimeError("Unreachable")
