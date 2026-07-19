@@ -88,12 +88,13 @@ class AsyncApiClient:
                 if attempt == self.max_attempts:
                     raise
 
+                delay = self._get_retry_delay(None, attempt)
                 print(
                     "Network error. "
                     f"Attempt {attempt}/{self.max_attempts}. "
                     f"Retrying in {self.retry_delay_seconds:.1f} seconds."
                 )
-                await self._sleep_before_retry(self.retry_delay_seconds)
+                await self._sleep_before_retry(delay)
         raise RuntimeError("Unreachable")
 
     def _get_retry_delay(
