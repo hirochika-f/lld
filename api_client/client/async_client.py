@@ -54,6 +54,8 @@ class AsyncApiClient:
         path: str,
         **kwargs: Any,
     ) -> dict[str, Any]:
+        # POST retries are only safe when the operation is idempotent,
+        # for example when using an idempotency key
         for attempt in range(1, self.max_attempts + 1):
             try:
                 async with self._semaphore:
