@@ -57,6 +57,8 @@ class AsyncApiClient:
         for attempt in range(1, self.max_attempts + 1):
             try:
                 async with self._semaphore:
+                # limit concurrency per http request with semaphore
+                # release semaphore after getting response while sleeping
                     response = await self._client.request(
                         method=method,
                         url=path,
