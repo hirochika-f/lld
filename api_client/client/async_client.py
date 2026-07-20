@@ -4,6 +4,8 @@ import random
 import asyncio
 import httpx
 
+from circuit_breaker import CircuitBreaker
+
 
 RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
@@ -25,6 +27,8 @@ class AsyncApiClient:
         self.retry_delay_seconds = retry_delay_seconds
         self.max_retry_delay_seconds = max_retry_delay_seconds
         self._semaphore = asyncio.Semaphore(max_concurrency)
+
+        self._circuit_breaker = CircuitBreaker()
 
     async def get(
         self,
@@ -61,13 +65,13 @@ class AsyncApiClient:
                 async with self._semaphore:
                 # limit concurrency per http request with semaphore
                 # release semaphore after getting response while sleeping
-                    response = await self._client.request(
-                        method=method,
-                        url=path,
+                    response = await self._circuit_breaker.call(
+                        self._send_once,
+                        method,
+                        path,
                         **kwargs,
                     )
-                response.raise_for_status()
-                return response.json()
+                    return response.json()
 
             except httpx.HTTPStatusError as exc:
                 status_code = exc.response.status_code
@@ -100,6 +104,20 @@ class AsyncApiClient:
                 )
                 await self._sleep_before_retry(delay)
         raise RuntimeError("Unreachable")
+
+    async def _send_once(
+        self,
+        method: str,
+        path: str,
+        **kwargs: Any,
+    ) -> httpx.Response:
+        response = await self._client.request(
+            method=method,
+            url=path,
+            **kwargs,
+        )
+        response.raise_for_status()
+        return response
 
     def _get_retry_delay(
         self,
@@ -138,14 +156,16 @@ class AsyncApiClient:
 
 
 async def main() -> None:
-    async with AsyncApiClient(max_concurrency=2) as client:
+    async with AsyncApiClient(max_concurrency=3) as client:
         results = await asyncio.gather(
             *[
-                client.get("/slow/1")
+                client.get("/slow/10")
                 for _ in range(10)
-            ]
+            ],
+            return_exceptions=True,
         )
-        print(results)
+        for index, result in enumerate(results, start=1):
+            print(index, type(result).__name__, result)
         await client.post("/reset")
 
 
