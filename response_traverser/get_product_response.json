@@ -1,0 +1,44 @@
+{
+    "request": {
+        "request_id": "req-001",
+        "generated_at": "2026-07-20T10:00:00Z"
+    },
+    "data": {
+        "catalog": {
+            "product": {
+                "identity": {
+                    "product_id": "p100"
+                },
+                "details": {
+                    "display_name": "Home Hub",
+                    "status": "active"
+                },
+                "commerce": {
+                    "price": {
+                        "amount": 12980,
+                        "currency": "JPY"
+                    },
+                    "inventory": {
+                        "available_quantity": 25
+                    }
+                },
+                "associations": {
+                    "related_products": [
+                        {
+                            "target": {
+                                "product_id": "p200"
+                            },
+                            "relation_type": "accessory"
+                        },
+                        {
+                            "target": {
+                                "product_id": "p300"
+                            },
+                            "relation_type": "alternative"
+                        }
+                    ]
+                }
+            }
+        }
+    }
+}
